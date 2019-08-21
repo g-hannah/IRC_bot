@@ -30,6 +30,7 @@ do_bot_stuff(BOT_CTX *bot)
 {
 	time_t		now;
 	int		i;
+	int		num_chans;
 	struct sigaction	sigact_n, sigact_o;
 
 	authorised_users = NULL;
@@ -53,8 +54,11 @@ do_bot_stuff(BOT_CTX *bot)
 	draw_chat_window();
 
 	log_info("Requesting to join channels");
-	for (i = 0; i < bot->num_chans; ++i)
-	  {
+
+	num_chans = bot->num_chans;
+
+	for (i = 0; i < num_chans; ++i)
+	{
 		if (!(bot->chans[i] = calloc(host_max, 1)))
 		  { log_err("do_bot_stuff > calloc"); goto fail; }
 
@@ -62,29 +66,31 @@ do_bot_stuff(BOT_CTX *bot)
 		strncpy(bot->chans[i], CHANNELS[i], strlen(CHANNELS[i]));
 		bot->chans[i][strlen(CHANNELS[i])] = 0;
 		log_info(bot->chans[i]);
-		//printf(" %s\n", bot->chans[i]);
+
 		if (bot->ops->join_chan(bot->chans[i], bot) < 0)
 		  { log_err("do_bot_stuff > join_chan (line %d)", __LINE__); goto fail; }
-	  }
+	}
 
 	if (bot->ops->get(bot) < 0)
 	  { log_err("do_bot_stuff > get (line %d)", __LINE__); goto fail; }
 
 	sleep(2);
-	for (i = 0; i < bot->num_chans; ++i)
+
+	for (i = 0; i < num_chans; ++i)
 		if (bot->ops->join_chan(bot->chans[i], bot) < 0)
 		  { log_err("do_bot_stuff > join_chan (line %d)", __LINE__); goto fail; }
 
 	for (;;)
-	  {
+	{
 		time(&now);
+
 		if (((now - bot->joined) % 600) >= 0 &&
 		   ((now - bot->joined) % 600) <= 2)
 			bot->ops->show_all_info(bot);
 
 		if (bot->ops->get(bot) < 0)
 		  { log_err("do_bot_stuff > get (line %d)", __LINE__); goto fail; }
-	  }
+	}
 
 	bot->ops->shutdown_bot(bot);
 	exit(EXIT_SUCCESS);
