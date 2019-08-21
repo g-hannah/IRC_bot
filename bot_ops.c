@@ -221,74 +221,80 @@ reply(BOT_CTX *bot)
 ssize_t
 get(BOT_CTX *bot)
 {
-	ssize_t		nbytes;
-	size_t		total;
-
-	total &= ~total;
-	nbytes &= ~nbytes;
+	ssize_t		nbytes = 0;
+	size_t		total = 0;
 
 	if (USING_SSL)
-	  {
+	{
 		while ((nbytes = SSL_read(bot->ssl, bot->buffer, BOT_BUFFERSZ-1)) > 0)
-		  {
+		{
 			if (nbytes < 0)
-			  {
+			{
 				if (errno == EINTR)
 					continue;
 				else
-			  	  { ERR_print_errors_fp(stderr); return(-1); }
-			  }
+			  {
+					ERR_print_errors_fp(stderr);
+					return -1;
+				}
+			}
 
 			bot->buffer[nbytes] = 0;
 			if (strstr(bot->buffer, "PING"))
-			  {
+			{
 				bot->ops->send_pong(bot); 
 				continue;
-			  }
-			else if (strstr(bot->buffer, "353")) continue;
-			else if (strstr(bot->buffer, "366")) continue;
-			else if (strstr(bot->buffer, "372")) continue;
+			}
+			else
+			if (strstr(bot->buffer, "353"))
+				continue;
+			else
+			if (strstr(bot->buffer, "366"))
+				continue;
+			else
+			if (strstr(bot->buffer, "372"))
+				continue;
 
 			if (add_messages(bot->buffer) < 0)
 				goto fail;
+
 			bot->ops->check_privmsg(bot);
-			//fprintf(stdout, "%s", bot->buffer);
 			total += nbytes;
-		  }
-	  }
+		}
+	}
 	else
-	  {
+	{
 		while ((nbytes = recv(bot->fd, bot->buffer, BOT_BUFFERSZ-1, 0)) > 0)
-		  {
+		{
 			if (nbytes < 0)
-			  {
+			{
 				if (errno == EINTR)
 					continue;
 				else
 			  	  { log_err("get"); return(-1); }
 				
-			  }
+			}
 			else
 
 			bot->buffer[nbytes] = 0;
 			if (strstr(bot->buffer, "PING"))
-			  {
+			{
 				bot->ops->send_pong(bot);
 				continue;
-			  }
+			}
 
 			if (add_messages(bot->buffer) < 0)
 				goto fail;
 			bot->ops->check_privmsg(bot);
 			//fprintf(stdout, "%s", bot->buffer);
 			total += nbytes;
-		  }
-	  }
+		}
+	}
 
-	return(0);
+	return 0;
 
 	fail:
-	return(-1);
+	return -1;
 }
 
 int
@@ -298,50 +304,54 @@ check_privmsg(BOT_CTX *bot)
 
 	if (!(tbuf = calloc(MAXLINE, 1)))
 	  { log_err("check_privmsg > calloc"); goto fail; }
+
 	memset(tbuf, 0, MAXLINE);
+
 	if (!(uname = calloc(MAXLINE, 1)))
 	  { log_err("check_privmsg > calloc"); goto fail; }
+
 	memset(uname, 0, MAXLINE);
 
 	sprintf(tbuf, "PRIVMSG %s :%c", bot->botname, 0x00);
 
 	if (strstr(bot->buffer, tbuf))
-	  {
+	{
 		log_fp(lfp, "Received PM \"%s\"", bot->buffer);
 
 		if (bot->ops->get_uname(bot, uname) < 0)
 	 	  { log_err("check_privmsg > get_uname"); goto fail; }
 
 		if (PASSWORD != NULL)
-	  	  {
+	  {
 			if (!(strstr(bot->buffer, PASSWORD)))
-		  	  {
+		  {
 				if (!bot->ops->already_in_list(uname, authorised_users))
-				  {
+				{
 					sprintf(bot->sbuffer,
 						"PRIVMSG %s :You need the right password to talk to me... (401) \r\n", uname);
-				  }
+				}
 				else
-				  {
+				{
 					int		ret;
 					if ((ret = bot->ops->check_for_command(bot)) < 0)
 					  { log_err("check_privmsg > check_for_command (line %d)", __LINE__); goto fail; }
-					else if (ret == 0) // we never got a command
-					  {
+					else
+					if (ret == 0) // we never got a command
+					{
 						randnum = (rand() % NUM_MSGS);
 						sprintf(bot->sbuffer,
 							"PRIVMSG %s :%s\r\n", uname, messages[randnum]);
-			 		  }
+			 		}
 					else
-					  {
+					{
 						goto end;
-					  }
-				  }
-			  }
+					}
+				}
+			}
 			else // the password was in the received private message
-	  		  {
+	  	{
 				if (!authorised_users)
-	  			  {
+	  		{
 					if (!(authorised_users = calloc(1, sizeof(char *))))
 					  { log_err("check_privmsg > calloc"); goto fail; }
 					authorised_users[0] = NULL;
@@ -350,11 +360,11 @@ check_privmsg(BOT_CTX *bot)
 					memset(authorised_users[0], 0, host_max);
 					strncpy(authorised_users[0], uname, strlen(uname));
 					++AUTH_USERS;
-				  }
+				}
 				else
-				  {
+				{
 					if (!bot->ops->already_in_list(uname, authorised_users))
-					  {
+					{
 						++AUTH_USERS;
 						if (!(authorised_users = realloc(authorised_users, (AUTH_USERS * (sizeof(char *))))))
 		  				  { log_err("do_bot_stuff > realloc (line %d)", __LINE__); goto fail; }
@@ -363,33 +373,35 @@ check_privmsg(BOT_CTX *bot)
 						  { log_err("do_bot_stuff > calloc (line %d)", __LINE__); goto fail; }
 						memset(authorised_users[AUTH_USERS-1], 0, host_max);
 						strncpy(authorised_users[AUTH_USERS-1], uname, strlen(uname));
-			  		  }
-				   }
+			  	}
+				}
 				sprintf(bot->sbuffer,
 					"PRIVMSG %s :Correct (200)! \r\n", uname);
 			}
-		  } // if password != NULL
+		} // if password != NULL
 		else
-		  {
+		{
 			int		ret;
 			if ((ret = bot->ops->check_for_command(bot)) < 0)
 			  { log_err("check_privmsg > check_for_command (line %d)", __LINE__); goto fail; }
-			else if (ret == 0) // we never got a command
-		  	  {
+			else
+			if (ret == 0) // we never got a command
+		  {
 				randnum = (rand() % NUM_MSGS);
 				sprintf(bot->sbuffer,
 		  			"PRIVMSG %s :%s\r\n", uname, messages[randnum]);
-		  	  }
-			else // got a command and we answered it within the check_for_command() function
-			  {
-				goto end;
-			  }
 		  }
+			else // got a command and we answered it within the check_for_command() function
+			{
+				goto end;
+			}
+		}
 
 		if (bot->ops->reply(bot) < 0)
 		  { log_err("check_privmsg > reply"); goto fail; }
+
 		memset(bot->sbuffer, 0, BOT_BUFFERSZ);
-	  }
+	}
 
 	end:
 	if (tbuf != NULL) { free(tbuf); tbuf = NULL; }
