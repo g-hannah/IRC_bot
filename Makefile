@@ -7,7 +7,7 @@ LIBS=-lcrypto -ldnslib -lencodelib -lhashlib -lmisclib -lssl -lpthread
 .PHONY: clean
 
 mirc_bot: $(OFILES)
-	$(CC) -g $(WFLAGS) -o IRC_Bot $(OFILES) $(LIBS)
+	$(CC) -g $(WFLAGS) -o mirc_bot $(OFILES) $(LIBS)
 
 $(OFILES): $(CFILES)
 	$(CC) -g $(WFLAGS) -c $(CFILES) $(LIBS)
